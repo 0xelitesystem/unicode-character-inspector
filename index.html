@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unicode Character Inspector</title>
+<meta name="description" content="Paste text and get a per-character breakdown: code point, category, UTF-8 bytes, UTF-16 units, and JS, HTML, and CSS escapes. Flags invisible characters and confusables. Fully client-side.">
+<link rel="canonical" href="https://0xelitesystem.github.io/unicode-character-inspector/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Unicode Character Inspector">
+<meta property="og:description" content="Per-character Unicode breakdown: code point, category, UTF-8 bytes, UTF-16 units, escapes, plus invisible-character and confusable flags. Runs in your browser.">
+<meta property="og:url" content="https://0xelitesystem.github.io/unicode-character-inspector/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Unicode Character Inspector",
+  "description": "Paste text and get a per-character breakdown: code point, category, UTF-8 bytes, UTF-16 units, and JS, HTML, and CSS escapes. Flags invisible characters and confusables. Runs entirely in your browser.",
+  "url": "https://0xelitesystem.github.io/unicode-character-inspector/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Organization", "name": "0xelitesystem" }
+}
+</script>
+<style>
+:root {
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --ink: #0a1d1e;
+  --ink-soft: #2c4a4c;
+  --rule: #c8d4d3;
+  --teal: #0f5c60;
+  --teal-deep: #0a4548;
+  --gold: #b07d2a;
+  --gold-deep: #8a611f;
+  --ok: #1a5c2e;
+  --warn: #8a5a00;
+  --err: #8b1a1a;
+  --code-bg: #f0ebe1;
+  --flag-bg: #fbeee0;
+}
+[data-theme="dark"] {
+  --bg: #0c1c1d;
+  --surface: #14292a;
+  --ink: #e8ebe6;
+  --ink-soft: #b0c0bd;
+  --rule: #2a4042;
+  --teal: #4ab4ba;
+  --teal-deep: #6dc8ce;
+  --gold: #d4a155;
+  --gold-deep: #e6b876;
+  --ok: #6dd380;
+  --warn: #d4a155;
+  --err: #e88080;
+  --code-bg: #0a1718;
+  --flag-bg: #2a2010;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  line-height: 1.55;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid var(--teal);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--teal);
+}
+.tag {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  color: var(--gold-deep);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+[data-theme="dark"] .tag { color: var(--gold); }
+.theme-btn {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.theme-btn:hover { border-color: var(--teal); color: var(--teal); }
+.lede {
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.75rem;
+  max-width: 64ch;
+}
+.input-box {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 1.25rem;
+  margin-bottom: 1.75rem;
+  border-radius: 3px;
+}
+label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+textarea {
+  width: 100%;
+  min-height: 90px;
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  resize: vertical;
+  border-radius: 2px;
+}
+textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.input-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+button {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 2px;
+}
+button:hover { border-color: var(--teal); }
+button.primary {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--surface);
+  font-weight: 600;
+}
+[data-theme="dark"] button.primary { color: var(--bg) !important; }
+button.primary:hover { background: var(--teal-deep); border-color: var(--teal-deep); }
+.summary {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.25rem;
+}
+.char {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.85rem;
+}
+.char.flagged { background: var(--flag-bg); border-color: var(--gold); }
+.char-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+  flex-wrap: wrap;
+}
+.glyph {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 2rem;
+  min-width: 2.4rem;
+  text-align: center;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  padding: 0.2rem 0.4rem;
+  background: var(--code-bg);
+}
+.cp {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--teal);
+}
+.flag-tag {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  background: var(--gold);
+  color: #fff;
+}
+.grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1.25rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.82rem;
+}
+.grid .k { color: var(--ink-soft); }
+.grid .v { color: var(--ink); word-break: break-all; }
+.note { font-size: 0.8rem; color: var(--gold-deep); margin-top: 0.5rem; }
+[data-theme="dark"] .note { color: var(--gold); }
+.disclaimer {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  font-style: italic;
+  background: var(--code-bg);
+  border-left: 3px solid var(--rule);
+  padding: 0.65rem 0.85rem;
+  border-radius: 2px;
+  margin-bottom: 1.25rem;
+}
+footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+footer a { color: var(--teal); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+@media (max-width: 640px) {
+  body { padding: 1rem 0.75rem; }
+  h1 { font-size: 1.4rem; }
+  .grid { grid-template-columns: 1fr; gap: 0.1rem 0; }
+  .grid .k { margin-top: 0.35rem; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Unicode Character Inspector</h1>
+    <div class="tag">See what your text is really made of</div>
+  </div>
+  <button class="theme-btn" id="theme-toggle" type="button">Dark</button>
+</header>
+
+<p class="lede">Paste or type text to get a per-character breakdown: the glyph, its Unicode code point, general category, UTF-8 byte sequence, UTF-16 code units, and the JS, HTML, and CSS escape forms. Invisible characters and likely confusables are flagged. Nothing leaves this page.</p>
+
+<div class="input-box">
+  <label for="text-input">Text</label>
+  <textarea id="text-input" placeholder="Type or paste text here" spellcheck="false" autocapitalize="off" autocorrect="off">Hi &#128512; caf&#233;</textarea>
+  <div class="input-row">
+    <button class="primary" id="analyze-btn" type="button">Analyze</button>
+    <button id="sample-btn" type="button">Load tricky sample</button>
+    <button id="clear-btn" type="button">Clear</button>
+  </div>
+</div>
+
+<div class="disclaimer">
+  A complete offline names database for every Unicode code point is not practical to ship in a single file, so this tool derives official names for ASCII and Latin-1 control and printable characters and labels everything else by its general category and block. Treat non-Latin names as approximate.
+</div>
+
+<div class="summary" id="summary"></div>
+<div id="output"></div>
+
+<footer>
+  <div>Unicode Character Inspector. Open source, MIT licensed.</div>
+  <div>Built by <a href="https://elitesystem.ai" target="_blank" rel="noopener">elitesystem.ai</a></div>
+</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const themeBtn = $("theme-toggle");
+function setTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  themeBtn.textContent = t === "dark" ? "Light" : "Dark";
+}
+themeBtn.addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") || "light";
+  setTheme(cur === "dark" ? "light" : "dark");
+});
+setTheme("light");
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Named ASCII control characters (U+0000 to U+001F, plus DEL).
+const CONTROL_NAMES = {
+  0: "NULL", 1: "START OF HEADING", 2: "START OF TEXT", 3: "END OF TEXT",
+  4: "END OF TRANSMISSION", 5: "ENQUIRY", 6: "ACKNOWLEDGE", 7: "BELL",
+  8: "BACKSPACE", 9: "CHARACTER TABULATION (TAB)", 10: "LINE FEED (LF)",
+  11: "LINE TABULATION", 12: "FORM FEED", 13: "CARRIAGE RETURN (CR)",
+  14: "SHIFT OUT", 15: "SHIFT IN", 16: "DATA LINK ESCAPE", 17: "DEVICE CONTROL ONE",
+  18: "DEVICE CONTROL TWO", 19: "DEVICE CONTROL THREE", 20: "DEVICE CONTROL FOUR",
+  21: "NEGATIVE ACKNOWLEDGE", 22: "SYNCHRONOUS IDLE", 23: "END OF TRANSMISSION BLOCK",
+  24: "CANCEL", 25: "END OF MEDIUM", 26: "SUBSTITUTE", 27: "ESCAPE",
+  28: "INFORMATION SEPARATOR FOUR", 29: "INFORMATION SEPARATOR THREE",
+  30: "INFORMATION SEPARATOR TWO", 31: "INFORMATION SEPARATOR ONE", 127: "DELETE"
+};
+
+// Specifically named code points worth calling out.
+const NAMED = {
+  0x20: "SPACE", 0xA0: "NO-BREAK SPACE", 0xAD: "SOFT HYPHEN",
+  0x200B: "ZERO WIDTH SPACE", 0x200C: "ZERO WIDTH NON-JOINER",
+  0x200D: "ZERO WIDTH JOINER", 0x200E: "LEFT-TO-RIGHT MARK",
+  0x200F: "RIGHT-TO-LEFT MARK", 0x202A: "LEFT-TO-RIGHT EMBEDDING",
+  0x202B: "RIGHT-TO-LEFT EMBEDDING", 0x202C: "POP DIRECTIONAL FORMATTING",
+  0x202D: "LEFT-TO-RIGHT OVERRIDE", 0x202E: "RIGHT-TO-LEFT OVERRIDE",
+  0x2060: "WORD JOINER", 0xFEFF: "ZERO WIDTH NO-BREAK SPACE (BOM)",
+  0x3000: "IDEOGRAPHIC SPACE", 0x2028: "LINE SEPARATOR", 0x2029: "PARAGRAPH SEPARATOR"
+};
+
+// Invisible or format-control code points to flag.
+const INVISIBLE = new Set([
+  0x00A0, 0x00AD, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
+  0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+  0x2060, 0x2061, 0x2062, 0x2063, 0x2064, 0xFEFF, 0x3000,
+  0x180E, 0x00A0
+]);
+
+// Confusables: code points that look like a common ASCII character.
+const CONFUSABLES = {
+  0x0430: "a (Cyrillic small a)", 0x0435: "e (Cyrillic small e)",
+  0x043E: "o (Cyrillic small o)", 0x0440: "p (Cyrillic small er)",
+  0x0441: "c (Cyrillic small es)", 0x0445: "x (Cyrillic small ha)",
+  0x0410: "A (Cyrillic capital A)", 0x0415: "E (Cyrillic capital Ie)",
+  0x041E: "O (Cyrillic capital O)", 0x0421: "C (Cyrillic capital Es)",
+  0x0405: "S (Cyrillic capital Dze)", 0x0455: "s (Cyrillic small dze)",
+  0x0456: "i (Cyrillic small i)", 0x0458: "j (Cyrillic small je)",
+  0x03BF: "o (Greek small omicron)", 0x0391: "A (Greek capital Alpha)",
+  0x0392: "B (Greek capital Beta)", 0x0395: "E (Greek capital Epsilon)",
+  0x039F: "O (Greek capital Omicron)", 0x03A1: "P (Greek capital Rho)",
+  0x2010: "- (hyphen)", 0x2013: "- (en dash)", 0x2014: "- (em dash)",
+  0x2018: "' (left single quote)", 0x2019: "' (right single quote)",
+  0x201C: '" (left double quote)', 0x201D: '" (right double quote)',
+  0xFF41: "a (fullwidth a)", 0xFF21: "A (fullwidth A)"
+};
+
+// Coarse general-category detection using Unicode property escapes.
+function category(cp) {
+  const ch = String.fromCodePoint(cp);
+  try {
+    if (/\p{Lu}/u.test(ch)) return "Lu, Uppercase Letter";
+    if (/\p{Ll}/u.test(ch)) return "Ll, Lowercase Letter";
+    if (/\p{Lt}/u.test(ch)) return "Lt, Titlecase Letter";
+    if (/\p{Lm}/u.test(ch)) return "Lm, Modifier Letter";
+    if (/\p{Lo}/u.test(ch)) return "Lo, Other Letter";
+    if (/\p{Nd}/u.test(ch)) return "Nd, Decimal Number";
+    if (/\p{Nl}/u.test(ch)) return "Nl, Letter Number";
+    if (/\p{No}/u.test(ch)) return "No, Other Number";
+    if (/\p{Mn}/u.test(ch)) return "Mn, Nonspacing Mark";
+    if (/\p{Mc}/u.test(ch)) return "Mc, Spacing Mark";
+    if (/\p{Me}/u.test(ch)) return "Me, Enclosing Mark";
+    if (/\p{Pc}/u.test(ch)) return "Pc, Connector Punctuation";
+    if (/\p{Pd}/u.test(ch)) return "Pd, Dash Punctuation";
+    if (/\p{Ps}/u.test(ch)) return "Ps, Open Punctuation";
+    if (/\p{Pe}/u.test(ch)) return "Pe, Close Punctuation";
+    if (/\p{Pi}/u.test(ch)) return "Pi, Initial Punctuation";
+    if (/\p{Pf}/u.test(ch)) return "Pf, Final Punctuation";
+    if (/\p{Po}/u.test(ch)) return "Po, Other Punctuation";
+    if (/\p{Sm}/u.test(ch)) return "Sm, Math Symbol";
+    if (/\p{Sc}/u.test(ch)) return "Sc, Currency Symbol";
+    if (/\p{Sk}/u.test(ch)) return "Sk, Modifier Symbol";
+    if (/\p{So}/u.test(ch)) return "So, Other Symbol";
+    if (/\p{Zs}/u.test(ch)) return "Zs, Space Separator";
+    if (/\p{Zl}/u.test(ch)) return "Zl, Line Separator";
+    if (/\p{Zp}/u.test(ch)) return "Zp, Paragraph Separator";
+    if (/\p{Cc}/u.test(ch)) return "Cc, Control";
+    if (/\p{Cf}/u.test(ch)) return "Cf, Format";
+    if (/\p{Cs}/u.test(ch)) return "Cs, Surrogate";
+    if (/\p{Co}/u.test(ch)) return "Co, Private Use";
+  } catch (e) { /* fall through */ }
+  return "Cn, Unassigned or unknown";
+}
+
+// Rough block name from the code point range.
+function block(cp) {
+  if (cp <= 0x7F) return "Basic Latin (ASCII)";
+  if (cp <= 0xFF) return "Latin-1 Supplement";
+  if (cp <= 0x17F) return "Latin Extended-A";
+  if (cp <= 0x24F) return "Latin Extended-B";
+  if (cp >= 0x370 && cp <= 0x3FF) return "Greek and Coptic";
+  if (cp >= 0x400 && cp <= 0x4FF) return "Cyrillic";
+  if (cp >= 0x590 && cp <= 0x5FF) return "Hebrew";
+  if (cp >= 0x600 && cp <= 0x6FF) return "Arabic";
+  if (cp >= 0x2000 && cp <= 0x206F) return "General Punctuation";
+  if (cp >= 0x20A0 && cp <= 0x20CF) return "Currency Symbols";
+  if (cp >= 0x2190 && cp <= 0x21FF) return "Arrows";
+  if (cp >= 0x2200 && cp <= 0x22FF) return "Mathematical Operators";
+  if (cp >= 0x2600 && cp <= 0x26FF) return "Miscellaneous Symbols";
+  if (cp >= 0x2700 && cp <= 0x27BF) return "Dingbats";
+  if (cp >= 0x3000 && cp <= 0x303F) return "CJK Symbols and Punctuation";
+  if (cp >= 0x4E00 && cp <= 0x9FFF) return "CJK Unified Ideographs";
+  if (cp >= 0xAC00 && cp <= 0xD7AF) return "Hangul Syllables";
+  if (cp >= 0x1F300 && cp <= 0x1F5FF) return "Miscellaneous Symbols and Pictographs";
+  if (cp >= 0x1F600 && cp <= 0x1F64F) return "Emoticons";
+  if (cp >= 0x1F680 && cp <= 0x1F6FF) return "Transport and Map Symbols";
+  if (cp >= 0x1F900 && cp <= 0x1F9FF) return "Supplemental Symbols and Pictographs";
+  if (cp >= 0x10000) return "Supplementary (astral) plane";
+  return "Unknown block";
+}
+
+function nameFor(cp) {
+  if (NAMED[cp]) return NAMED[cp];
+  if (CONTROL_NAMES[cp]) return CONTROL_NAMES[cp];
+  if (cp >= 0x41 && cp <= 0x5A) return "LATIN CAPITAL LETTER " + String.fromCodePoint(cp);
+  if (cp >= 0x61 && cp <= 0x7A) return "LATIN SMALL LETTER " + String.fromCodePoint(cp).toUpperCase();
+  if (cp >= 0x30 && cp <= 0x39) return "DIGIT " + String.fromCodePoint(cp);
+  return "(no local name, see category and block)";
+}
+
+// UTF-8 bytes for a single code point.
+function utf8Bytes(cp) {
+  const bytes = [];
+  if (cp <= 0x7F) {
+    bytes.push(cp);
+  } else if (cp <= 0x7FF) {
+    bytes.push(0xC0 | (cp >> 6), 0x80 | (cp & 0x3F));
+  } else if (cp <= 0xFFFF) {
+    bytes.push(0xE0 | (cp >> 12), 0x80 | ((cp >> 6) & 0x3F), 0x80 | (cp & 0x3F));
+  } else {
+    bytes.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3F), 0x80 | ((cp >> 6) & 0x3F), 0x80 | (cp & 0x3F));
+  }
+  return bytes.map(b => b.toString(16).toUpperCase().padStart(2, "0"));
+}
+
+function utf16Units(chStr) {
+  const units = [];
+  for (let i = 0; i < chStr.length; i++) {
+    units.push(chStr.charCodeAt(i).toString(16).toUpperCase().padStart(4, "0"));
+  }
+  return units;
+}
+
+function hexCp(cp) {
+  return cp.toString(16).toUpperCase().padStart(cp > 0xFFFF ? 5 : 4, "0");
+}
+
+function jsEscape(chStr, cp) {
+  if (cp > 0xFFFF) return "\\u{" + hexCp(cp) + "}";
+  return "\\u" + hexCp(cp);
+}
+function cssEscape(cp) {
+  return "\\" + cp.toString(16).toUpperCase() + " ";
+}
+function htmlEscape(cp) {
+  return "&#" + cp + "; or &#x" + cp.toString(16).toUpperCase() + ";";
+}
+
+function analyze() {
+  const text = $("text-input").value;
+  const out = $("output");
+  out.innerHTML = "";
+  if (!text) {
+    $("summary").textContent = "";
+    return;
+  }
+  // [...text] splits by code point, keeping surrogate pairs together.
+  const chars = [...text];
+  $("summary").textContent =
+    chars.length + " character(s) by code point, " + text.length + " UTF-16 code unit(s), " +
+    "JS string length " + text.length + ".";
+
+  chars.forEach((chStr) => {
+    const cp = chStr.codePointAt(0);
+    const flags = [];
+    if (INVISIBLE.has(cp)) flags.push("Invisible or format control");
+    if (CONFUSABLES[cp]) flags.push("Confusable, looks like " + CONFUSABLES[cp]);
+    if (cp <= 0x1F || cp === 0x7F) flags.push("Control character");
+    if (cp >= 0xD800 && cp <= 0xDFFF) flags.push("Lone surrogate");
+
+    const div = document.createElement("div");
+    div.className = "char" + (flags.length ? " flagged" : "");
+
+    // Render the glyph, but show a placeholder for invisibles and controls.
+    let glyphShow = escapeHtml(chStr);
+    if (INVISIBLE.has(cp) || cp <= 0x1F || cp === 0x7F) glyphShow = "&#9633;"; // white square placeholder
+
+    const cats = category(cp);
+    const name = nameFor(cp);
+    const blk = block(cp);
+    const u8 = utf8Bytes(cp);
+    const u16 = utf16Units(chStr);
+
+    let flagHtml = "";
+    if (flags.length) {
+      flagHtml = flags.map(f => '<span class="flag-tag">' + escapeHtml(f) + "</span>").join(" ");
+    }
+
+    div.innerHTML =
+      '<div class="char-head">' +
+        '<span class="glyph">' + glyphShow + "</span>" +
+        '<span class="cp">U+' + hexCp(cp) + "</span>" +
+        flagHtml +
+      "</div>" +
+      '<div class="grid">' +
+        '<div class="k">Name</div><div class="v">' + escapeHtml(name) + "</div>" +
+        '<div class="k">Category</div><div class="v">' + escapeHtml(cats) + "</div>" +
+        '<div class="k">Block</div><div class="v">' + escapeHtml(blk) + "</div>" +
+        '<div class="k">Code point</div><div class="v">U+' + hexCp(cp) + " (decimal " + cp + ")</div>" +
+        '<div class="k">UTF-8 bytes</div><div class="v">' + u8.join(" ") + "</div>" +
+        '<div class="k">UTF-16 units</div><div class="v">' + u16.join(" ") + (u16.length === 2 ? " (surrogate pair)" : "") + "</div>" +
+        '<div class="k">JS escape</div><div class="v">' + escapeHtml(jsEscape(chStr, cp)) + "</div>" +
+        '<div class="k">HTML escape</div><div class="v">' + escapeHtml(htmlEscape(cp)) + "</div>" +
+        '<div class="k">CSS escape</div><div class="v">' + escapeHtml(cssEscape(cp)) + "</div>" +
+      "</div>";
+    out.appendChild(div);
+  });
+}
+
+$("analyze-btn").addEventListener("click", analyze);
+$("sample-btn").addEventListener("click", () => {
+  // Latin a, Cyrillic a (confusable), zero-width space, no-break space, astral emoji, combining accent.
+  $("text-input").value = "aа​ 😀é";
+  analyze();
+});
+$("clear-btn").addEventListener("click", () => {
+  $("text-input").value = "";
+  $("output").innerHTML = "";
+  $("summary").textContent = "";
+});
+$("text-input").addEventListener("input", analyze);
+
+analyze();
+</script>
+</body>
+</html>
