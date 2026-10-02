@@ -2,9 +2,22 @@
 
 Paste or type text and get a per-character breakdown. For every character you see the glyph, its Unicode code point (U+XXXX), general category, rough block, UTF-8 byte sequence, UTF-16 code units, and the JS, HTML, and CSS escape forms. Invisible characters (zero-width, no-break space, bidi controls) and likely confusables (homoglyphs) are flagged. Single self-contained file, no external dependencies, works offline.
 
+**Live demo:** https://0xelitesystem.github.io/unicode-character-inspector/
+
 ## Live demo
 
 https://0xelitesystem.github.io/unicode-character-inspector/
+
+## Use
+
+1. Type or paste text into the Text box, or click Load tricky sample.
+2. The table updates as you type (Analyze runs it again on demand).
+3. Read each row: glyph, code point, category, block, UTF-8 bytes, UTF-16 units, and the JS, HTML and CSS escapes. Flags mark invisible characters and likely confusables.
+4. Click Clear to start again.
+
+## Why this exists
+
+Invisible characters and look-alike letters break string comparisons, slip into source code, and hide in lookalike domains, and you cannot see them by reading the text. This page shows every code point plainly. It is one HTML file with no dependencies, no tracking and no network calls, released under MIT.
 
 ## Features
 
@@ -26,6 +39,25 @@ An honest limitation: a complete offline names database for every Unicode code p
 ## Privacy
 
 Everything runs in your browser. The text you paste is never sent anywhere. There are no external scripts, fonts, stylesheets, or analytics. Open the page source to confirm. It works fully offline.
+
+The page saves one thing in localStorage: your light or dark theme choice, under the key `theme`.
+
+## Run locally
+
+```
+git clone https://github.com/0xelitesystem/unicode-character-inspector
+cd unicode-character-inspector
+```
+
+Open `index.html` in any browser. Or serve the folder and visit http://localhost:8000:
+
+```
+python -m http.server 8000
+```
+
+## Build
+
+No build step. The whole tool is one `index.html` file with inline CSS and JavaScript.
 
 ## More
 
